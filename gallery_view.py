@@ -1,5 +1,4 @@
 import os
-import sys
 import pygame
 
 # --- Einstellungen ---
@@ -9,14 +8,13 @@ PADDING = 10
 WINDOW_SIZE = (640, 480)
 
 def load_images_from_folder(folder):
-    """Sucht JPG-Bilder im Ordner und erstellt Thumbnails."""
+    """Sucht Bilder im Ordner und erstellt Thumbnails."""
     images = []
-    for fname in sorted(os.listdir(folder), reverse=True):
+    for fname in sorted(os.listdir(folder), reverse=True):  # neueste zuerst
         if fname.lower().endswith((".jpg", ".jpeg", ".png")):
             path = os.path.join(folder, fname)
             try:
                 img = pygame.image.load(path)
-                # Verhältnis beibehalten
                 ratio = THUMB_WIDTH / img.get_width()
                 new_height = int(img.get_height() * ratio)
                 img = pygame.transform.scale(img, (THUMB_WIDTH, new_height))
@@ -34,28 +32,52 @@ def main():
 
     images = load_images_from_folder(IMAGE_FOLDER)
 
-    scroll_y = 0  # Startposition
+    # Scroll-Variablen
+    scroll_y = 0
     max_scroll = max(0, sum(img.get_height() + PADDING for img, _ in images) - WINDOW_SIZE[1])
+
+    dragging = False
+    drag_start_y = 0
+    scroll_start_y = 0
 
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_DOWN:
                     scroll_y = min(scroll_y + 30, max_scroll)
                 elif event.key == pygame.K_UP:
                     scroll_y = max(scroll_y - 30, 0)
+
             elif event.type == pygame.MOUSEWHEEL:
                 scroll_y = max(0, min(max_scroll, scroll_y - event.y * 30))
 
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Linksklick startet Dragging
+                    dragging = True
+                    drag_start_y = event.pos[1]
+                    scroll_start_y = scroll_y
+
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    dragging = False
+
+            elif event.type == pygame.MOUSEMOTION:
+                if dragging:
+                    dy = event.pos[1] - drag_start_y
+                    scroll_y = scroll_start_y - dy  # umgedreht für natürliche Scrollrichtung
+                    scroll_y = max(0, min(max_scroll, scroll_y))
+
+        # Bildschirm löschen
         screen.fill((50, 50, 50))
 
+        # Bilder zeichnen
         y = -scroll_y
         for thumb, path in images:
             screen.blit(thumb, (PADDING, y))
-            # Dateiname zeichnen
             filename = os.path.basename(path)
             text_surface = font.render(filename, True, (255, 255, 255))
             screen.blit(text_surface, (THUMB_WIDTH + 2 * PADDING, y + 10))
