@@ -101,5 +101,7 @@ while True:
                     countdown_start_time = pygame.time.get_ticks()
                 elif button_gallery.collidepoint(event.pos):
                     print("Galerie-Button gedrückt!")
+                    gallery_script = os.path.join(SCRIPT_DIR, "gallery_view.py")
+                    subprocess.run(["python3", gallery_script])
 
     clock.tick(30)

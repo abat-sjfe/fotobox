@@ -33,7 +33,7 @@ image = pygame.transform.flip(image, True, False)  # horizontal spiegeln
 image = pygame.transform.scale(image, (640, 480))
 
 # --- Farben & Buttons ---
-btn_color = (255, 255, 255, 150)  # halb transparent
+btn_color = (255, 255, 255, 60)  # halb transparent
 border_color = (0, 0, 0)          # schwarz
 
 save_button = pygame.Rect(100, 400, 180, 60)
