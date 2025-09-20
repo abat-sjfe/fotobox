@@ -22,7 +22,7 @@ class ClickableImage(ButtonBehavior, AsyncImage):
     def on_press(self):
         # Open the selected image in show_image_galery.py
         subprocess.Popen(
-            ["python3", os.path.join(SCRIPT_DIR, "show_image.py"), self.image_path]
+            ["python3", os.path.join(SCRIPT_DIR, "show_image_gallery.py"), self.image_path]
         )
 
 class GalleryApp(App):
