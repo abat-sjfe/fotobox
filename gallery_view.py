@@ -106,7 +106,7 @@ running = True
 
 while running:
     dt = clock.tick(60) / 1000.0  # Sekunden pro Frame
-
+    print("rows:", rows, "max_scroll:", max_scroll)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
