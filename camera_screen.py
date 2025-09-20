@@ -1,50 +1,67 @@
-import tkinter as tk
-from PIL import Image, ImageTk
+import pygame
+import sys
 from picamera2 import Picamera2
-import time
+import numpy as np
 
-class CameraApp:
-	def __init__(self, root):
-		self.root = root
-		self.root.title("Fotobox Kamera")
-		self.camera = Picamera2()
-		self.camera.start()
-		self.preview_label = tk.Label(root)
-		self.preview_label.pack()
-		# Button oben links: transparent, weißer Rand, schwarzer Text, Text 'Foto'
-		self.capture_button = tk.Button(
-			root,
-			text="Foto",
-			command=self.capture_image,
-			bg=self.root['bg'],  # Hintergrund wie Fenster
-			fg="black",
-			activebackground=self.root['bg'],
-			activeforeground="black",
-			borderwidth=2,
-			highlightthickness=2,
-			highlightbackground="white",
-			highlightcolor="white",
-			font=("Arial", 14, "bold")
-		)
-		self.capture_button.place(x=0, y=0, width=90, height=44)
-		self.update_preview()
+# Kamera vorbereiten
+picam2 = Picamera2()
+preview_config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)})
+picam2.configure(preview_config)
+picam2.start()
 
-	def update_preview(self):
-		# Bild von der Kamera holen
-		frame = self.camera.capture_array()
-		image = Image.fromarray(frame)
-		image = image.resize((640, 480))
-		photo = ImageTk.PhotoImage(image=image)
-		self.preview_label.configure(image=photo)
-		self.preview_label.image = photo
-		self.root.after(30, self.update_preview)
+# Pygame Setup
+pygame.init()
+screen = pygame.display.set_mode((640, 480))
+pygame.display.set_caption("Fotobox")
 
-	def capture_image(self):
-		filename = f"foto_{int(time.time())}.jpg"
-		self.camera.capture_file(filename)
-		print(f"Foto gespeichert: {filename}")
+font = pygame.font.SysFont(None, 48)
 
-if __name__ == "__main__":
-	root = tk.Tk()
-	app = CameraApp(root)
-	root.mainloop()
+def draw_rounded_button(surface, rect, color, border_color, text, radius=20, border_width=4):
+    # Transparente Fläche erstellen
+    button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+
+    # Abgerundetes Rechteck zeichnen
+    pygame.draw.rect(button_surf, color, button_surf.get_rect(), border_radius=radius)
+    pygame.draw.rect(button_surf, border_color, button_surf.get_rect(), border_width, border_radius=radius)
+    
+    # Text zentriert hinzufügen
+    text_surf = font.render(text, True, border_color)
+    text_rect = text_surf.get_rect(center=button_surf.get_rect().center)
+    button_surf.blit(text_surf, text_rect)
+
+    # Button auf Hauptfläche zeichnen
+    surface.blit(button_surf, rect)
+
+# Farbeinstellungen
+button_color = (255, 255, 255, 100)   # halb transparent
+border_color = (255, 0, 0)            # rot
+
+button_rect = pygame.Rect(220, 380, 200, 60)  # Position und Größe
+
+clock = pygame.time.Clock()
+
+while True:
+    # Kamera-Frame holen
+    frame = picam2.capture_array()
+
+    # In Pygame Surface konvertieren
+    frame_surface = pygame.surfarray.make_surface(np.rot90(frame))
+
+    # Vorschau zeichnen
+    screen.blit(frame_surface, (0, 0))
+
+    # Button zeichnen
+    draw_rounded_button(screen, button_rect, button_color, border_color, "Aufnehmen")
+
+    # Bildschirm aktualisieren
+    pygame.display.flip()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if button_rect.collidepoint(event.pos):
+                print("Foto machen!")  # hier Aufnahmefunktion einbauen
+    
+    clock.tick(30)
