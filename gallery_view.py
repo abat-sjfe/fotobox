@@ -50,7 +50,8 @@ while running:
             dragging = False
         elif event.type == pygame.MOUSEMOTION and dragging:
             dy = event.pos[1] - drag_start_y
-            scroll_y = max(0, min(rows*(TILE_H+PADDING)-WINDOW_H, scroll_start_y - dy))
+            # Touch-typisch: Nach unten ziehen -> nach unten scrollen
+            scroll_y = max(0, min(max(0, rows*(TILE_H+PADDING)-WINDOW_H), scroll_start_y + dy))
 
     screen.fill((30, 30, 30))
 
