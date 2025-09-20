@@ -16,7 +16,7 @@ pygame.display.set_caption("Fotobox")
 
 font = pygame.font.SysFont(None, 48)
 
-def draw_rounded_button(surface, rect, color, border_color, text, radius=20, border_width=4):
+def draw_rounded_button(surface, rect, color, border_color, text, radius=20, border_width=2):
     # Transparente Fläche erstellen
     button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
 
@@ -33,8 +33,8 @@ def draw_rounded_button(surface, rect, color, border_color, text, radius=20, bor
     surface.blit(button_surf, rect)
 
 # Farbeinstellungen
-button_color = (255, 255, 255, 100)   # halb transparent
-border_color = (255, 0, 0)            # rot
+button_color = (255, 255, 255, 200)   # halb transparent
+border_color = (0, 0, 0)            # schwarz
 
 button_rect = pygame.Rect(220, 380, 200, 60)  # Position und Größe
 
