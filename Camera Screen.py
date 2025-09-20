@@ -11,8 +11,9 @@ class CameraApp:
 		self.camera.start()
 		self.preview_label = tk.Label(root)
 		self.preview_label.pack()
-		self.capture_button = tk.Button(root, text="Foto aufnehmen", command=self.capture_image)
-		self.capture_button.pack(pady=10)
+		# Transparenter Button oben links
+		self.capture_button = tk.Button(root, text="capture", command=self.capture_image, bg="white", fg="white", activebackground="white", activeforeground="white", borderwidth=0, highlightthickness=0)
+		self.capture_button.place(x=0, y=0, width=80, height=40)
 		self.update_preview()
 
 	def update_preview(self):
