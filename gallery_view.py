@@ -1,6 +1,5 @@
 import pygame
 import os
-import subprocess
 import math
 
 # --- Einstellungen ---
@@ -11,7 +10,10 @@ WINDOW_W, WINDOW_H = 640, 480
 
 def load_images(folder):
     imgs = []
-    for fname in sorted([f for f in os.listdir(folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))], reverse=True):
+    for fname in sorted(
+        [f for f in os.listdir(folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))],
+        reverse=True
+    ):
         path = os.path.join(folder, fname)
         try:
             img = pygame.image.load(path).convert()
@@ -30,57 +32,60 @@ images = load_images(IMAGE_FOLDER)
 # Layout
 cols = max(1, WINDOW_W // (TILE_W + PADDING))
 rows = math.ceil(len(images) / cols)
-
-# Scrollvariablen
-scroll_y = 0
 max_scroll = max(0, rows * (TILE_H + PADDING) - WINDOW_H)
+
+# Scroll-Variablen
+scroll_y = 0
 dragging = False
 drag_start_y = 0
 scroll_start_y = 0
-touch_id = None
 
-running = True
+# Momentum-Variablen
+velocity = 0
+last_mouse_y = 0
+
 clock = pygame.time.Clock()
+running = True
 
 while running:
+    dt = clock.tick(60) / 1000.0  # Sekunden pro Frame
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-        # Maus Drag
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            dragging = True
-            drag_start_y = event.pos[1]
-            scroll_start_y = scroll_y
+        # Maus (und Touch emuliert als Maus!)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Linke Taste oder 1-Finger-Touch
+                dragging = True
+                drag_start_y = event.pos[1]
+                scroll_start_y = scroll_y
+                velocity = 0  # Momentum wird zurückgesetzt
+                last_mouse_y = event.pos[1]
 
-        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            dragging = False
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                dragging = False
+                # Geschwindigkeit beim Loslassen merken
+                velocity = -(event.pos[1] - last_mouse_y) / dt * 0.02  # Faktor justierbar
 
         elif event.type == pygame.MOUSEMOTION and dragging:
             dy = event.pos[1] - drag_start_y
-            scroll_y = min(max_scroll, max(0, scroll_start_y - dy))
+            scroll_y = max(0, min(max_scroll, scroll_start_y - dy))
+            last_mouse_y = event.pos[1]
 
-        # Touch Drag
-        elif event.type == pygame.FINGERDOWN:
-            dragging = True
-            touch_id = event.finger_id
-            drag_start_y = event.y * WINDOW_H  # Normalisiert -> Pixel
-            scroll_start_y = scroll_y
-
-        elif event.type == pygame.FINGERMOTION and dragging:
-            if event.finger_id == touch_id:
-                dy = (event.y * WINDOW_H) - drag_start_y
-                scroll_y = min(max_scroll, max(0, scroll_start_y - dy))
-
-        elif event.type == pygame.FINGERUP:
-            if event.finger_id == touch_id:
-                dragging = False
-                touch_id = None
+    # Momentum-Scroll wenn nicht am Ziehen
+    if not dragging and abs(velocity) > 0.1:
+        scroll_y = max(0, min(max_scroll, scroll_y + velocity))
+        velocity *= 0.92  # Abbremsung pro Frame
+        # Stoppen, wenn fast keine Bewegung mehr
+        if abs(velocity) < 0.05:
+            velocity = 0
 
     # --- Zeichnen ---
     screen.fill((30, 30, 30))
 
-    # Starte bei dem Versatz innerhalb eines Tiles (modulo)
+    # Sichtbare Zeilen berechnen
     start_y = -(scroll_y % (TILE_H + PADDING))
     first_row = scroll_y // (TILE_H + PADDING)
 
@@ -96,6 +101,5 @@ while running:
         row += 1
 
     pygame.display.flip()
-    clock.tick(60)
 
 pygame.quit()
