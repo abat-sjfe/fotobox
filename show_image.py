@@ -1,7 +1,6 @@
 import sys
 import os
 import pygame
-import numpy as np
 
 def draw_rounded_button(surface, rect, color, border_color, text, font, radius=20, border_width=2):
     button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
@@ -12,6 +11,7 @@ def draw_rounded_button(surface, rect, color, border_color, text, font, radius=2
     button_surf.blit(text_surf, text_rect)
     surface.blit(button_surf, rect)
 
+# --- Argument prüfen ---
 if len(sys.argv) < 2:
     print("Bildpfad fehlt!")
     sys.exit(1)
@@ -21,31 +21,25 @@ if not os.path.exists(path):
     print(f"Datei nicht gefunden: {path}")
     sys.exit(1)
 
+# --- Pygame Setup ---
 pygame.init()
 screen = pygame.display.set_mode((640, 480))
 pygame.display.set_caption("Fotoanzeige")
-
 font = pygame.font.SysFont(None, 48)
 
-# Bild laden
+# --- Bild laden und spiegeln ---
 image = pygame.image.load(path)
-
-# === Gleiche Drehung wie im Live-Bild ===
-img_array = pygame.surfarray.array3d(image)
-img_array = np.rot90(img_array)
-image = pygame.surfarray.make_surface(img_array)
-
-# Auf Größe skalieren
+image = pygame.transform.flip(image, True, False)  # horizontal spiegeln
 image = pygame.transform.scale(image, (640, 480))
 
-# Farben
-btn_color = (255, 255, 255, 150)
-border_color = (0, 0, 0)
+# --- Farben & Buttons ---
+btn_color = (255, 255, 255, 150)  # halb transparent
+border_color = (0, 0, 0)          # schwarz
 
-# Buttons
 save_button = pygame.Rect(100, 400, 180, 60)
 delete_button = pygame.Rect(360, 400, 180, 60)
 
+# --- Main Loop ---
 running = True
 while running:
     for event in pygame.event.get():
@@ -53,7 +47,7 @@ while running:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if save_button.collidepoint(event.pos):
-                print("Foto gespeichert und behalten.")
+                print("Foto behalten.")
                 running = False
             elif delete_button.collidepoint(event.pos):
                 print("Foto wird gelöscht!")
