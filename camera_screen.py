@@ -76,14 +76,16 @@ while True:
             picam2.capture_file(save_path)
             print(f"Foto gespeichert unter: {save_path}")
 
+            # Zurück in den Vorschau-Modus
+            countdown_active = False
+            
             # Absoluter Pfad zur show_image.py
             show_image_script = os.path.join(SCRIPT_DIR, "show_image.py")
 
             # show_image.py starten und Foto anzeigen
             subprocess.run(["python3", show_image_script, save_path])
 
-            # Zurück in den Vorschau-Modus
-            countdown_active = False
+
 
     pygame.display.flip()
 
