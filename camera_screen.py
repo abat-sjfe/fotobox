@@ -4,12 +4,16 @@ from picamera2 import Picamera2
 import numpy as np
 import time
 import os
-from show_image import show_image
 import subprocess
+
+# Ordner, in dem dieses Script liegt (damit Pfade immer stimmen)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Kamera vorbereiten
 picam2 = Picamera2()
-preview_config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)})
+preview_config = picam2.create_preview_configuration(
+    main={"format": "RGB888", "size": (640, 480)}
+)
 picam2.configure(preview_config)
 picam2.start()
 
@@ -22,6 +26,7 @@ font = pygame.font.SysFont(None, 48)
 big_font = pygame.font.SysFont(None, 150)  # für Countdown-Zahlen
 
 def draw_rounded_button(surface, rect, color, border_color, text, radius=20, border_width=2):
+    """Zeichnet einen abgerundeten Button mit Text auf die Oberfläche."""
     button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
     pygame.draw.rect(button_surf, color, button_surf.get_rect(), border_radius=radius)
     pygame.draw.rect(button_surf, border_color, button_surf.get_rect(), border_width, border_radius=radius)
@@ -32,7 +37,7 @@ def draw_rounded_button(surface, rect, color, border_color, text, radius=20, bor
 
 # Farben
 button_color = (255, 255, 255, 50)  # halb transparent
-border_color = (0, 0, 0)  # schwarz
+border_color = (0, 0, 0)            # schwarz
 
 # Buttons
 button_photo = pygame.Rect(220, 380, 200, 60)  # unten
@@ -65,15 +70,21 @@ while True:
             text_rect = text_surf.get_rect(center=(320, 240))
             screen.blit(text_surf, text_rect)
         else:
+            # Foto aufnehmen
             filename = time.strftime("foto_%Y%m%d_%H%M%S.jpg")
-            save_path = os.path.join(os.getcwd(), filename)
+            save_path = os.path.join(SCRIPT_DIR, filename)
             picam2.capture_file(save_path)
             print(f"Foto gespeichert unter: {save_path}")
 
-            subprocess.run(["python3", "show_image.py", save_path])
+            # Absoluter Pfad zur show_image.py
+            show_image_script = os.path.join(SCRIPT_DIR, "show_image.py")
 
+            # show_image.py starten und Foto anzeigen
+            subprocess.run(["python3", show_image_script, save_path])
+
+            # Zurück in den Vorschau-Modus
             countdown_active = False
-       
+
     pygame.display.flip()
 
     for event in pygame.event.get():
@@ -87,6 +98,6 @@ while True:
                     countdown_active = True
                     countdown_start_time = pygame.time.get_ticks()
                 elif button_gallery.collidepoint(event.pos):
-                    print("Gallerie-Button gedrückt!")
+                    print("Galerie-Button gedrückt!")
 
     clock.tick(30)
