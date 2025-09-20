@@ -17,43 +17,33 @@ pygame.display.set_caption("Fotobox")
 font = pygame.font.SysFont(None, 48)
 
 def draw_rounded_button(surface, rect, color, border_color, text, radius=20, border_width=2):
-    # Transparente Fläche erstellen
     button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-
-    # Abgerundetes Rechteck zeichnen
     pygame.draw.rect(button_surf, color, button_surf.get_rect(), border_radius=radius)
     pygame.draw.rect(button_surf, border_color, button_surf.get_rect(), border_width, border_radius=radius)
-    
-    # Text zentriert hinzufügen
     text_surf = font.render(text, True, border_color)
     text_rect = text_surf.get_rect(center=button_surf.get_rect().center)
     button_surf.blit(text_surf, text_rect)
-
-    # Button auf Hauptfläche zeichnen
     surface.blit(button_surf, rect)
 
 # Farbeinstellungen
 button_color = (255, 255, 255, 50)   # halb transparent
-border_color = (0, 0, 0)            # schwarz
+border_color = (0, 0, 0)             # schwarz
 
-button_rect = pygame.Rect(220, 380, 200, 60)  # Position und Größe
+# Buttons
+button_rect = pygame.Rect(220, 380, 200, 60)   # unten mittig
+button2_rect = pygame.Rect(20, 20, 200, 60)    # oben links
 
 clock = pygame.time.Clock()
 
 while True:
-    # Kamera-Frame holen
     frame = picam2.capture_array()
-
-    # In Pygame Surface konvertieren
     frame_surface = pygame.surfarray.make_surface(np.rot90(frame))
-
-    # Vorschau zeichnen
     screen.blit(frame_surface, (0, 0))
 
-    # Button zeichnen
+    # Buttons zeichnen
     draw_rounded_button(screen, button_rect, button_color, border_color, "Aufnehmen")
+    draw_rounded_button(screen, button2_rect, button_color, border_color, "Zurück")
 
-    # Bildschirm aktualisieren
     pygame.display.flip()
 
     for event in pygame.event.get():
@@ -62,6 +52,8 @@ while True:
             sys.exit()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if button_rect.collidepoint(event.pos):
-                print("Foto machen!")  # hier Aufnahmefunktion einbauen
-    
+                print("Foto machen!")
+            elif button2_rect.collidepoint(event.pos):
+                print("Zurück-Button gedrückt!")
+
     clock.tick(30)
