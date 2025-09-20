@@ -26,12 +26,12 @@ def draw_rounded_button(surface, rect, color, border_color, text, radius=20, bor
     surface.blit(button_surf, rect)
 
 # Farbeinstellungen
-button_color = (255, 255, 255, 50)   # halb transparent
+button_color = (255, 255, 255, 25)   # halb transparent
 border_color = (0, 0, 0)             # schwarz
 
 # Buttons
-button_rect = pygame.Rect(220, 380, 200, 60)   # unten mittig
-button2_rect = pygame.Rect(20, 20, 200, 60)    # oben links
+button_photo = pygame.Rect(220, 380, 200, 60)   # unten mittig
+button_gallery = pygame.Rect(20, 20, 100, 60)    # oben links
 
 clock = pygame.time.Clock()
 
@@ -41,8 +41,8 @@ while True:
     screen.blit(frame_surface, (0, 0))
 
     # Buttons zeichnen
-    draw_rounded_button(screen, button_rect, button_color, border_color, "Aufnehmen")
-    draw_rounded_button(screen, button2_rect, button_color, border_color, "Zurück")
+    draw_rounded_button(screen, button_photo, button_color, border_color, "Aufnehmen")
+    draw_rounded_button(screen, button_gallery, button_color, border_color, "Gallerie")
 
     pygame.display.flip()
 
@@ -51,9 +51,9 @@ while True:
             pygame.quit()
             sys.exit()
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if button_rect.collidepoint(event.pos):
+            if button_photo.collidepoint(event.pos):
                 print("Foto machen!")
-            elif button2_rect.collidepoint(event.pos):
-                print("Zurück-Button gedrückt!")
+            elif button_gallery.collidepoint(event.pos):
+                print("Gallerie-Button gedrückt!")
 
     clock.tick(30)
