@@ -2,17 +2,23 @@ import os
 import pygame
 import subprocess
 import math
+import time
 
 # === EINSTELLUNGEN ===
-IMAGE_FOLDER = os.path.dirname(os.path.abspath(__file__))  # Foto-Ordner
-THUMB_SIZE = (200, 150)    # Größe der Thumbnails (Breite, Höhe)
-PADDING = 10               # Abstand zwischen Bildern
-WINDOW_SIZE = (640, 480)   # Fenstergröße
+IMAGE_FOLDER = os.path.dirname(os.path.abspath(__file__))  # Ordner mit Fotos
+THUMB_SIZE = (240, 180)   # größere Thumbnails für Touch
+PADDING = 15              # größerer Abstand für Touch
+WINDOW_SIZE = (640, 480)  # Displaygröße z. B. Touchscreen
+
+# Tap/Scroll-Erkennung
+TAP_MAX_DISTANCE = 15      # maximaler Bewegungsradius für Tap in Pixeln
+TAP_MAX_TIME = 0.25        # Sekunden bis es kein Tap mehr ist
 
 def load_images_from_folder(folder):
+    """Lädt Bilder und erzeugt Thumbnails."""
     images = []
-    files = [f for f in os.listdir(folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-    for fname in sorted(files, reverse=True):  # neueste zuerst
+    files = sorted([f for f in os.listdir(folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))], reverse=True)
+    for fname in files:
         path = os.path.join(folder, fname)
         try:
             img = pygame.image.load(path).convert()
@@ -25,15 +31,19 @@ def load_images_from_folder(folder):
 def main():
     pygame.init()
     screen = pygame.display.set_mode(WINDOW_SIZE)
-    pygame.display.set_caption("Fotobox Galerie")
+    pygame.display.set_caption("Fotobox Galerie (Touch ready)")
 
     images = load_images_from_folder(IMAGE_FOLDER)
+
     scroll_y = 0
     dragging = False
     drag_start_y = 0
     scroll_start_y = 0
 
-    # Berechne Layout
+    tap_start_time = 0
+    tap_start_pos = (0, 0)
+
+    # Spalten und Zeilen berechnen
     cols = max(1, WINDOW_SIZE[0] // (THUMB_SIZE[0] + PADDING))
     rows_needed = math.ceil(len(images) / cols)
     max_scroll = max(0, rows_needed * (THUMB_SIZE[1] + PADDING) - WINDOW_SIZE[1])
@@ -44,39 +54,35 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            elif event.type == pygame.MOUSEWHEEL:
-                scroll_y -= event.y * 30
-                scroll_y = max(0, min(max_scroll, scroll_y))
-
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     dragging = True
                     drag_start_y = event.pos[1]
                     scroll_start_y = scroll_y
 
-                    # --- Bildklick prüfen ---
-                    mx, my = event.pos
-                    my += scroll_y
-                    col = mx // (THUMB_SIZE[0] + PADDING)
-                    row = my // (THUMB_SIZE[1] + PADDING)
-                    index = row * cols + col
-                    if 0 <= index < len(images):
-                        # Pfad des angeklickten Bildes
-                        _, path = images[index]
-                        # show_image.py aufrufen
-                        try:
-                            subprocess.run(["python3", os.path.join(IMAGE_FOLDER, "show_image.py"), path])
-                        except FileNotFoundError:
-                            print("show_image.py nicht gefunden! Lege es ins gleiche Verzeichnis.")
-
-                elif event.button == 4:  # Mausrad hoch (Fallback)
-                    scroll_y = max(0, scroll_y - 30)
-                elif event.button == 5:  # Mausrad runter (Fallback)
-                    scroll_y = min(max_scroll, scroll_y + 30)
+                    tap_start_time = time.time()
+                    tap_start_pos = event.pos
 
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     dragging = False
+                    # Prüfen, ob es ein Tap war → Foto öffnen
+                    tap_duration = time.time() - tap_start_time
+                    dist_x = abs(event.pos[0] - tap_start_pos[0])
+                    dist_y = abs(event.pos[1] - tap_start_pos[1])
+                    if tap_duration <= TAP_MAX_TIME and dist_x < TAP_MAX_DISTANCE and dist_y < TAP_MAX_DISTANCE:
+                        # Exakte Position inkl. Scrolloffset feststellen
+                        mx, my = event.pos
+                        my += scroll_y
+                        col = mx // (THUMB_SIZE[0] + PADDING)
+                        row = my // (THUMB_SIZE[1] + PADDING)
+                        index = row * cols + col
+                        if 0 <= index < len(images):
+                            _, path = images[index]
+                            try:
+                                subprocess.run(["python3", os.path.join(IMAGE_FOLDER, "show_image.py"), path])
+                            except FileNotFoundError:
+                                print("Fehler: show_image.py nicht gefunden – bitte ins gleiche Verzeichnis legen.")
 
             elif event.type == pygame.MOUSEMOTION:
                 if dragging:
