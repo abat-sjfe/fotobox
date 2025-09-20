@@ -1,112 +1,129 @@
-import pygame
-import sys
-from picamera2 import Picamera2
-import numpy as np
-import time
 import os
+import sys
+import time
+import threading
 import subprocess
+import numpy as np
 
-# Ordner, in dem dieses Script liegt (damit Pfade immer stimmen)
+from picamera2 import Picamera2
+
+from kivy.app import App
+from kivy.clock import Clock
+from kivy.graphics.texture import Texture
+from kivy.uix.image import Image
+from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.label import Label
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BILDER_DIR = os.path.join(SCRIPT_DIR, "bilder")
 
-# Kamera vorbereiten
-picam2 = Picamera2()
-preview_config = picam2.create_preview_configuration(
-    main={"format": "RGB888", "size": (640, 480)}
-)
-picam2.configure(preview_config)
-picam2.start()
 
-# Pygame Setup
-pygame.init()
-screen = pygame.display.set_mode((640, 480))
-pygame.display.set_caption("Fotobox")
+class PhotoBoothApp(App):
+    def build(self):
+        self.countdown_active = False
+        self.countdown_seconds = 5
+        self.countdown_start_time = 0
 
-font = pygame.font.SysFont(None, 48)
-big_font = pygame.font.SysFont(None, 150)  # für Countdown-Zahlen
+        # Camera setup
+        self.picam2 = Picamera2()
+        preview_config = self.picam2.create_preview_configuration(
+            main={"format": "RGB888", "size": (640, 480)}
+        )
+        self.picam2.configure(preview_config)
+        self.picam2.start()
 
-def draw_rounded_button(surface, rect, color, border_color, text, radius=20, border_width=2):
-    """Zeichnet einen abgerundeten Button mit Text auf die Oberfläche."""
-    button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-    pygame.draw.rect(button_surf, color, button_surf.get_rect(), border_radius=radius)
-    pygame.draw.rect(button_surf, border_color, button_surf.get_rect(), border_width, border_radius=radius)
-    text_surf = font.render(text, True, border_color)
-    text_rect = text_surf.get_rect(center=button_surf.get_rect().center)
-    button_surf.blit(text_surf, text_rect)
-    surface.blit(button_surf, rect)
+        # Main layout with float positioning
+        self.layout = FloatLayout()
 
-# Farben
-button_color = (255, 255, 255, 50)  # halb transparent
-border_color = (0, 0, 0)            # schwarz
+        # Image widget for camera stream
+        self.image_widget = Image()
+        self.layout.add_widget(self.image_widget)
 
-# Buttons
-button_photo = pygame.Rect(220, 380, 200, 60)  # unten
-button_gallery = pygame.Rect(20, 20, 100, 60)  # oben links
+        # Countdown label in center
+        self.countdown_label = Label(
+            text="",
+            font_size=150,
+            color=(1, 1, 1, 1),
+            size_hint=(None, None),
+            pos_hint={"center_x": 0.5, "center_y": 0.5},
+        )
+        self.layout.add_widget(self.countdown_label)
 
-clock = pygame.time.Clock()
+        # Capture button
+        self.btn_photo = Button(
+            text="Take Photo",
+            size_hint=(None, None),
+            size=(200, 60),
+            pos_hint={"center_x": 0.5, "y": 0.02},
+        )
+        self.btn_photo.bind(on_release=self.start_countdown)
+        self.layout.add_widget(self.btn_photo)
 
-# Countdown-Status
-countdown_active = False
-countdown_start_time = 0
-countdown_seconds = 5
+        # Gallery button
+        self.btn_gallery = Button(
+            text="Gallery",
+            size_hint=(None, None),
+            size=(100, 60),
+            pos_hint={"x": 0.02, "top": 0.98},
+        )
+        self.btn_gallery.bind(on_release=self.open_gallery)
+        self.layout.add_widget(self.btn_gallery)
 
-while True:
-    frame = picam2.capture_array()
-    frame_surface = pygame.surfarray.make_surface(np.rot90(frame))
-    screen.blit(frame_surface, (0, 0))
+        # Schedule camera updates
+        Clock.schedule_interval(self.update_camera, 1.0 / 30.0)
 
-    # Buttons nur zeichnen, wenn kein Countdown läuft
-    if not countdown_active:
-        draw_rounded_button(screen, button_photo, button_color, border_color, "Aufnehmen")
-        draw_rounded_button(screen, button_gallery, button_color, border_color, "Fotos")
-    else:
-        # Aktuelle Countdown-Zahl berechnen
-        elapsed = (pygame.time.get_ticks() - countdown_start_time) // 1000
-        remaining = countdown_seconds - elapsed
+        return self.layout
 
-        if remaining > 0:
-            # große Zahl in die Mitte schreiben
-            text_surf = big_font.render(str(remaining), True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=(320, 240))
-            screen.blit(text_surf, text_rect)
+    def update_camera(self, dt):
+        """Grab frame from Picamera2 and display it."""
+        if not self.countdown_active:
+            frame = self.picam2.capture_array()
+            frame = np.rot90(frame)
+            buf = frame.tobytes()
+
+            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt="rgb")
+            texture.blit_buffer(buf, colorfmt="rgb", bufferfmt="ubyte")
+            texture.flip_vertical()
+            self.image_widget.texture = texture
+
         else:
-            # Foto aufnehmen
+            elapsed = (time.time() - self.countdown_start_time)
+            remaining = int(self.countdown_seconds - elapsed)
 
-            # Unterordner 'bilder' verwenden
-            bilder_dir = os.path.join(SCRIPT_DIR, "bilder")
-            if not os.path.exists(bilder_dir):
-                os.makedirs(bilder_dir)
-            filename = time.strftime("foto_%Y%m%d_%H%M%S.jpg")
-            save_path = os.path.join(bilder_dir, filename)
-            picam2.capture_file(save_path)
-            print(f"Foto gespeichert unter: {save_path}")
+            if remaining > 0:
+                # Show countdown number
+                self.countdown_label.text = str(remaining)
+            else:
+                # Take the photo
+                self.take_photo()
+                self.countdown_active = False
+                self.countdown_label.text = ""
 
-            # Zurück in den Vorschau-Modus
-            countdown_active = False
-            
-            # Absoluter Pfad zur show_image.py
-            show_image_script = os.path.join(SCRIPT_DIR, "show_image.py")
+    def start_countdown(self, instance):
+        if not self.countdown_active:
+            self.countdown_active = True
+            self.countdown_start_time = time.time()
+            self.countdown_label.text = str(self.countdown_seconds)
 
-            # show_image.py starten und Foto anzeigen
-            subprocess.run(["python3", show_image_script, save_path])
+    def take_photo(self):
+        # Make sure folder exists
+        if not os.path.exists(BILDER_DIR):
+            os.makedirs(BILDER_DIR)
+
+        filename = time.strftime("photo_%Y%m%d_%H%M%S.jpg")
+        save_path = os.path.join(BILDER_DIR, filename)
+        self.picam2.capture_file(save_path)
+        print(f"Photo saved to: {save_path}")
+
+        # Show image via show_image.py
+        show_image_script = os.path.join(SCRIPT_DIR, "show_image.py")
+        threading.Thread(target=lambda: subprocess.run(["python3", show_image_script, save_path])).start()
+
+    def open_gallery(self, instance):
+        gallery_script = os.path.join(SCRIPT_DIR, "gallery_view.py")
+        threading.Thread(target=lambda: subprocess.run(["python3", gallery_script])).start()
 
 
-
-    pygame.display.flip()
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if not countdown_active:  # nur wenn kein Countdown läuft
-                if button_photo.collidepoint(event.pos):
-                    print("Countdown startet...")
-                    countdown_active = True
-                    countdown_start_time = pygame.time.get_ticks()
-                elif button_gallery.collidepoint(event.pos):
-                    print("Galerie-Button gedrückt!")
-                    gallery_script = os.path.join(SCRIPT_DIR, "gallery_view.py")
-                    subprocess.run(["python3", gallery_script])
-
-    clock.tick(30)
+if __name__ == "__main__":
+    PhotoBoothApp().run()
