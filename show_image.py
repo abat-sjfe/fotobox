@@ -1,15 +1,21 @@
 import sys
 import pygame
-
-pygame.init()
-screen = pygame.display.set_mode((640, 480))
-pygame.display.set_caption("Fotoanzeige")
+import os
 
 if len(sys.argv) < 2:
     print("Bildpfad fehlt!")
     sys.exit(1)
 
 path = sys.argv[1]
+
+if not os.path.exists(path):
+    print(f"Datei nicht gefunden: {path}")
+    sys.exit(1)
+
+pygame.init()
+screen = pygame.display.set_mode((640, 480))
+pygame.display.set_caption("Fotoanzeige")
+
 image = pygame.image.load(path)
 image = pygame.transform.scale(image, (640, 480))
 
