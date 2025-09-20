@@ -71,8 +71,13 @@ while True:
             screen.blit(text_surf, text_rect)
         else:
             # Foto aufnehmen
+
+            # Unterordner 'bilder' verwenden
+            bilder_dir = os.path.join(SCRIPT_DIR, "bilder")
+            if not os.path.exists(bilder_dir):
+                os.makedirs(bilder_dir)
             filename = time.strftime("foto_%Y%m%d_%H%M%S.jpg")
-            save_path = os.path.join(SCRIPT_DIR, filename)
+            save_path = os.path.join(bilder_dir, filename)
             picam2.capture_file(save_path)
             print(f"Foto gespeichert unter: {save_path}")
 
