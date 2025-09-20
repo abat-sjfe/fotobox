@@ -5,6 +5,7 @@ import numpy as np
 import time
 import os
 from show_image import show_image
+import subprocess
 
 # Kamera vorbereiten
 picam2 = Picamera2()
@@ -69,7 +70,7 @@ while True:
             picam2.capture_file(save_path)
             print(f"Foto gespeichert unter: {save_path}")
 
-            show_image(save_path)
+            subprocess.run(["python3", "show_image.py", save_path])
 
             countdown_active = False
        
