@@ -1,66 +1,119 @@
-import sys
-import os
 import pygame
+import os
+import math
+import subprocess
 
-def draw_rounded_button(surface, rect, color, border_color, text, font, radius=20, border_width=2):
-    button_surf = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-    pygame.draw.rect(button_surf, color, button_surf.get_rect(), border_radius=radius)
-    pygame.draw.rect(button_surf, border_color, button_surf.get_rect(), border_width, border_radius=radius)
-    text_surf = font.render(text, True, border_color)
-    text_rect = text_surf.get_rect(center=button_surf.get_rect().center)
-    button_surf.blit(text_surf, text_rect)
-    surface.blit(button_surf, rect)
+# --- Settings ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_FOLDER = os.path.join(SCRIPT_DIR, "bilder")
+TILE_W, TILE_H = 240, 180
+PADDING = 15
+WINDOW_W, WINDOW_H = 640, 480
 
-# --- Argument prüfen ---
-if len(sys.argv) < 2:
-    print("Bildpfad fehlt!")
-    sys.exit(1)
-
-path = sys.argv[1]
-if not os.path.exists(path):
-    print(f"Datei nicht gefunden: {path}")
-    sys.exit(1)
-
-# --- Pygame Setup ---
 pygame.init()
-screen = pygame.display.set_mode((640, 480))
-pygame.display.set_caption("Fotoanzeige")
-font = pygame.font.SysFont(None, 48)
+screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
+pygame.display.set_caption("Photo Gallery")
 
-# --- Bild laden und spiegeln ---
-image = pygame.image.load(path)
-image = pygame.transform.flip(image, True, False)  # horizontal spiegeln
-image = pygame.transform.scale(image, (640, 480))
+clock = pygame.time.Clock()
 
-# --- Farben & Buttons ---
-btn_color = (255, 255, 255, 60)  # halb transparent
-border_color = (0, 0, 0)          # schwarz
+# --- Load thumbnails ---
+def load_images(folder):
+    images = []
+    if not os.path.exists(folder):
+        return images
+    files = sorted(
+        [f for f in os.listdir(folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))],
+        reverse=True
+    )
+    for fname in files:
+        path = os.path.join(folder, fname)
+        try:
+            img = pygame.image.load(path).convert()
+            img = pygame.transform.scale(img, (TILE_W, TILE_H))
+            images.append((img, path))
+        except Exception as e:
+            print(f"Error loading {fname}: {e}")
+    return images
 
-save_button = pygame.Rect(100, 400, 180, 60)
-delete_button = pygame.Rect(360, 400, 180, 60)
+images = load_images(IMAGE_FOLDER)
 
-# --- Main Loop ---
+# --- Layout ---
+cols = max(1, WINDOW_W // (TILE_W + PADDING))
+rows = math.ceil(len(images) / cols)
+max_scroll = max(0, rows * (TILE_H + PADDING) - WINDOW_H)
+
+scroll_y = 0
+dragging = False
+drag_start_y = 0
+scroll_start_y = 0
+
+# Optional momentum
+velocity = 0
+last_mouse_y = 0
+
+# --- Main loop ---
 running = True
 while running:
+    dt = clock.tick(60) / 1000.0  # seconds/frame
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if save_button.collidepoint(event.pos):
-                print("Foto behalten.")
-                running = False
-            elif delete_button.collidepoint(event.pos):
-                print("Foto wird gelöscht!")
-                try:
-                    os.remove(path)
-                    print("Datei erfolgreich gelöscht.")
-                except Exception as e:
-                    print("Fehler beim Löschen:", e)
-                running = False
 
-    screen.blit(image, (0, 0))
-    draw_rounded_button(screen, save_button, btn_color, border_color, "Speichern", font)
-    draw_rounded_button(screen, delete_button, btn_color, border_color, "Löschen", font)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # touch or left mouse
+                dragging = True
+                drag_start_y = event.pos[1]
+                scroll_start_y = scroll_y
+                velocity = 0
+                last_mouse_y = event.pos[1]
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                dragging = False
+                velocity = (event.pos[1] - last_mouse_y) / dt * 0.02
+
+                # Detect click/tap without drag
+                if abs(event.pos[1] - drag_start_y) < 5:
+                    # Translate mouse position to gallery coordinates
+                    mx, my = event.pos
+                    my_off = my + scroll_y
+                    col = mx // (TILE_W + PADDING)
+                    row = my_off // (TILE_H + PADDING)
+                    idx = int(row * cols + col)
+                    if 0 <= idx < len(images):
+                        _, path = images[idx]
+                        print(f"Opening {path}...")
+                        subprocess.run(["python3", os.path.join(SCRIPT_DIR, "show_image.py"), path])
+
+        elif event.type == pygame.MOUSEMOTION and dragging:
+            dy = event.pos[1] - drag_start_y
+            scroll_y = min(max_scroll, max(0, scroll_start_y - dy))
+            last_mouse_y = event.pos[1]
+
+    # Momentum scroll if not dragging
+    if not dragging and abs(velocity) > 0.1:
+        scroll_y = min(max_scroll, max(0, scroll_y - velocity))
+        velocity *= 0.92
+        if abs(velocity) < 0.05:
+            velocity = 0
+
+    # --- Draw ---
+    screen.fill((30, 30, 30))
+
+    start_y = -(scroll_y % (TILE_H + PADDING))
+    first_row = scroll_y // (TILE_H + PADDING)
+
+    y_pos = start_y
+    row = int(first_row)
+    while y_pos < WINDOW_H and row < rows:
+        for col in range(cols):
+            idx = row * cols + col
+            if idx < len(images):
+                x_pos = col * (TILE_W + PADDING) + PADDING
+                screen.blit(images[idx][0], (x_pos, y_pos))
+        y_pos += TILE_H + PADDING
+        row += 1
 
     pygame.display.flip()
 
