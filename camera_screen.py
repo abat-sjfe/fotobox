@@ -59,8 +59,8 @@ while running:
 
     # Draw UI
     if not countdown_active:
-        draw_rounded_button(screen, button_photo, button_color, border_color, "Take Photo")
-        draw_rounded_button(screen, button_gallery, button_color, border_color, "Gallery")
+        draw_rounded_button(screen, button_photo, button_color, border_color, "Foto machen")
+        draw_rounded_button(screen, button_gallery, button_color, border_color, "Fotos")
     else:
         elapsed = (pygame.time.get_ticks() - countdown_start_time) // 1000
         remaining = countdown_seconds - elapsed
