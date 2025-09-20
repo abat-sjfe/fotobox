@@ -4,6 +4,7 @@ from picamera2 import Picamera2
 import numpy as np
 import time
 import os
+from show_image import show_image
 
 # Kamera vorbereiten
 picam2 = Picamera2()
@@ -59,17 +60,18 @@ while True:
 
         if remaining > 0:
             # große Zahl in die Mitte schreiben
-            text_surf = big_font.render(str(remaining), True, (255, 0, 0))
+            text_surf = big_font.render(str(remaining), True, (255, 255, 255))
             text_rect = text_surf.get_rect(center=(320, 240))
             screen.blit(text_surf, text_rect)
         else:
-            # Aufnahme machen
             filename = time.strftime("foto_%Y%m%d_%H%M%S.jpg")
             save_path = os.path.join(os.getcwd(), filename)
             picam2.capture_file(save_path)
             print(f"Foto gespeichert unter: {save_path}")
 
-            countdown_active = False  # zurück in Vorschau
+            show_image(save_path)
+
+            countdown_active = False
        
     pygame.display.flip()
 
