@@ -47,16 +47,19 @@ for idx, (thumb, path) in enumerate(images):
 
 # --- Pygame-Hauptfenster ---
 screen = pygame.display.set_mode(WINDOW_SIZE)
-pygame.display.set_caption("Galerie mit Scroll-Surface")
+pygame.display.set_caption("Galerie mit Scroll-Surface (Touch & Maus)")
 
 # --- Scrollvariablen ---
 scroll_y = 0
 max_scroll = min(0, WINDOW_SIZE[1] - surface_height)  # negativ
 
 clock = pygame.time.Clock()
+
+# Drag Variablen
 dragging = False
 drag_start_y = 0
 scroll_start_y = 0
+touch_id = None  # Zum Erkennen welcher Finger scrollt
 
 running = True
 while running:
@@ -64,36 +67,66 @@ while running:
         if e.type == pygame.QUIT:
             running = False
 
+        # --- Mausrad Support ---
         elif e.type == pygame.MOUSEBUTTONDOWN:
             if e.button == 4:  # Mausrad hoch
                 scroll_y = min(scroll_y + 30, 0)
             elif e.button == 5:  # Mausrad runter
                 scroll_y = max(scroll_y - 30, max_scroll)
-            elif e.button == 1:  # Linksklick / Touch-Drag Start
+            elif e.button == 1:  # Linksklick Drag-Start
                 dragging = True
                 drag_start_y = e.pos[1]
                 scroll_start_y = scroll_y
 
         elif e.type == pygame.MOUSEBUTTONUP:
             if e.button == 1:
+                # Falls fast keine Bewegung -> Klick
+                if abs(scroll_y - scroll_start_y) < 5:
+                    mx, my = e.pos
+                    my_off = my - scroll_y
+                    col = mx // (THUMB_SIZE[0] + PADDING)
+                    row = my_off // (THUMB_SIZE[1] + PADDING)
+                    idx = row * cols + col
+                    if 0 <= idx < len(images):
+                        _, path = images[idx]
+                        subprocess.run(["python3", os.path.join(IMAGE_FOLDER, "show_image.py"), path])
                 dragging = False
-                # Klick auf Bild prüfen
-                mx, my = e.pos
-                # Koordinaten innerhalb der großen Oberfläche
-                my_off = my - scroll_y
-                col = mx // (THUMB_SIZE[0] + PADDING)
-                row = my_off // (THUMB_SIZE[1] + PADDING)
-                idx = row * cols + col
-                if 0 <= idx < len(images):
-                    _, path = images[idx]
-                    subprocess.run(["python3", os.path.join(IMAGE_FOLDER, "show_image.py"), path])
 
         elif e.type == pygame.MOUSEMOTION and dragging:
             dy = e.pos[1] - drag_start_y
             scroll_y = max(max_scroll, min(0, scroll_start_y + dy))
 
-    # --- Zeichnen: nur verschoben reinblitten ---
-    screen.fill((0,0,0))
+        # --- Touch-EVENTS ---
+        elif e.type == pygame.FINGERDOWN:
+            # e.x, e.y sind im Bereich 0..1, daher umrechnen
+            dragging = True
+            touch_id = e.finger_id
+            drag_start_y = e.y * WINDOW_SIZE[1]
+            scroll_start_y = scroll_y
+
+        elif e.type == pygame.FINGERMOTION and dragging:
+            if e.finger_id == touch_id:
+                dy = (e.y * WINDOW_SIZE[1]) - drag_start_y
+                scroll_y = max(max_scroll, min(0, scroll_start_y + dy))
+
+        elif e.type == pygame.FINGERUP:
+            if e.finger_id == touch_id:
+                # Gleiche Klick-Logik wie bei der Maus
+                if abs(scroll_y - scroll_start_y) < 5:
+                    mx = e.x * WINDOW_SIZE[0]
+                    my = e.y * WINDOW_SIZE[1]
+                    my_off = my - scroll_y
+                    col = int(mx // (THUMB_SIZE[0] + PADDING))
+                    row = int(my_off // (THUMB_SIZE[1] + PADDING))
+                    idx = row * cols + col
+                    if 0 <= idx < len(images):
+                        _, path = images[idx]
+                        subprocess.run(["python3", os.path.join(IMAGE_FOLDER, "show_image.py"), path])
+                dragging = False
+                touch_id = None
+
+    # --- Zeichnen ---
+    screen.fill((0, 0, 0))
     screen.blit(intermediate, (0, scroll_y))
     pygame.display.flip()
     clock.tick(60)
